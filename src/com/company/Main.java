@@ -3,10 +3,11 @@ package com.company;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.*;
 
 public class Main {
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException, ExecutionException {
         String[] texts = new String[25];
         for (int i = 0; i < texts.length; i++) {
             texts[i] = generateText("aab", 30_000);
@@ -15,10 +16,12 @@ public class Main {
         //Multi threads solution
         long start = System.currentTimeMillis(); // start time
 
-        List<Thread> threads = new ArrayList<>();
+        final ExecutorService poolThreads = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+        List<Future> listFuture = new ArrayList<>();
 
         for (String text : texts) {
-            Thread thread = new Thread(() -> {
+
+            final Callable myCallable = () -> {
                 int maxSize = 0;
                 for (int i = 0; i < text.length(); i++) {
                     for (int j = 0; j < text.length(); j++) {
@@ -38,18 +41,22 @@ public class Main {
                     }
                 }
                 System.out.println(text.substring(0, 100) + " -> " + maxSize);
-            });
-            thread.start();
-            threads.add(thread);
+                return maxSize;
+            };
+            listFuture.add(poolThreads.submit(myCallable));
         }
 
-        for (Thread thread1 : threads) {
-            thread1.join(); // зависаем, ждём когда поток объект которого лежит в thread завершится
+        int max = 0;
+        for (Future future : listFuture) {
+            max = Math.max(max,(Integer) future.get());
         }
+        poolThreads.shutdown();
 
+        System.out.println("Maximum interval is " + max);
         long end = System.currentTimeMillis(); // end time
         System.out.println("Time multi thread solution: " + (end - start) + "ms");
 
+        System.out.println("\nOne thread:\n");
 
         //One thread solution
         long startTs = System.currentTimeMillis(); // start time
